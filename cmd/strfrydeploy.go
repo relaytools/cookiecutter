@@ -132,7 +132,8 @@ func checkAndRestartRelays() {
 			getStrfryConf(relay["id"].(string))
 
 			// create spamblaster.cfg
-			file, err := os.OpenFile("spamblaster.cfg", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+			sbConf := fmt.Sprintf("%s/spamblaster.cfg", relay["id"].(string))
+			file, err := os.OpenFile(sbConf, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 			if err != nil {
 				log.Fatalf("Error occurred while opening file. Error is: %s", err.Error())
 			}

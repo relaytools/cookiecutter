@@ -14,4 +14,3 @@ go build
 
 - [ ] more docs
 - [ ] architecture diagram
-- [ ] implement websocket instead of polling

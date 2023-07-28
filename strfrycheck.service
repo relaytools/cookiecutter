@@ -1,0 +1,10 @@
+[Unit]
+Description=haproxycheck
+Wants=network.target
+
+[Service]
+EnvironmentFile=/app/curldown/.cookiecutter.env
+ExecStart=/app/curldown/cookiecutter strfrydeploy
+WorkingDirectory=/app/curldown
+User=root
+Group=root

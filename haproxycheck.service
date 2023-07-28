@@ -1,0 +1,10 @@
+[Unit]
+Description=haproxycheck
+Wants=network.target
+
+[Service]
+EnvironmentFile=/etc/haproxy/.cookiecutter.env
+ExecStart=/etc/haproxy/cookiecutter haproxydeploy
+WorkingDirectory=/etc/haproxy
+User=root
+Group=root

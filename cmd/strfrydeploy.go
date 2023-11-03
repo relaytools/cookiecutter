@@ -16,17 +16,10 @@ var strfrydeploy = &cobra.Command{
 	Short: "deploy strfrys",
 	Long:  `deploy strfrys`,
 	Run: func(cmd *cobra.Command, args []string) {
-
 		ev := signEventWithLoginToken()
-		fmt.Println(ev)
-
 		csrf := getCSRF()
-		fmt.Println(csrf)
-
 		performLogin(ev, csrf)
-
 		checkAndRestartRelays()
-
 		cleanUpDeletedRelays()
 	},
 }

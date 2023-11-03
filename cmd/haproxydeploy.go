@@ -16,16 +16,9 @@ var haproxydeploy = &cobra.Command{
 	Short: "deploy haproxy",
 	Long:  `deploy haproxy`,
 	Run: func(cmd *cobra.Command, args []string) {
-
 		ev := signEventWithLoginToken()
-
-		fmt.Println(ev)
-
 		csrf := getCSRF()
-		fmt.Println(csrf)
-
 		performLogin(ev, csrf)
-
 		checkAndRestartHaproxy()
 	},
 }
@@ -94,6 +87,7 @@ func getHaproxyCfg() {
 			os.Rename(newPath, oldPath)
 			runCmd("systemctl", []string{"reload", "haproxy"})
 		} else {
+
 			log.Fatal("Invalid haproxy config, bailing out")
 		}
 	}

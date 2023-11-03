@@ -23,15 +23,16 @@ var client http.Client
 
 func runCmd(cmd string, args []string) bool {
 	log.Printf("%s %v", cmd, args)
-	out, err := exec.Command(cmd, args...).Output()
+	out, err := exec.Command(cmd, args...).CombinedOutput()
 	if err != nil {
+		log.Println(string(out))
 		exitErr, ok := err.(*exec.ExitError)
 		if ok && exitErr.ExitCode() == 1 {
 			return false
 		}
 		log.Fatal(err)
 	}
-	fmt.Printf("%s", out)
+	log.Printf("%s", out)
 	return true
 }
 

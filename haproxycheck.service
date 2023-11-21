@@ -4,7 +4,7 @@ Wants=network.target
 
 [Service]
 EnvironmentFile=/etc/haproxy/.cookiecutter.env
-ExecStart=/etc/haproxy/cookiecutter haproxydeploy
+ExecStart=/usr/local/bin/cookiecutter haproxydeploy
 WorkingDirectory=/etc/haproxy
 User=root
 Group=root

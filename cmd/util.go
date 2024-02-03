@@ -58,7 +58,7 @@ func signEventWithLoginToken() nostr.Event {
 	body, _ := io.ReadAll(resp.Body)
 	json.Unmarshal(body, &data)
 
-	fmt.Println(data["token"])
+	//fmt.Println(data["token"])
 	pub, _ := nostr.GetPublicKey(privateKey)
 
 	// create event to sign

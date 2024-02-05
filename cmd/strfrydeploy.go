@@ -97,7 +97,7 @@ func cleanUpDeletedRelays() {
 		log.Printf("Deleting relay %s\n", relay["id"].(string))
 		if relay["status"] == "deleting" {
 
-			// working directory is /app/curldown
+			// working directory is the CWD
 			runCmd("systemctl", []string{"stop", relay["id"].(string)})
 			runCmd("systemctl", []string{"disable", relay["id"].(string)})
 			runCmd("rm", []string{"-rf", "/lib/systemd/system/" + relay["id"].(string) + ".service"})
@@ -114,9 +114,6 @@ func checkAndRestartRelays() {
 	for _, relay := range relays {
 		log.Printf("Provisioning relay %s\n", relay["id"].(string))
 		if relay["status"] == "provision" {
-			// working directory is /app/curldown
-			// ...
-
 			// make directory structure for strfry
 			dbDir := fmt.Sprintf("%s/strfry-db", relay["id"].(string))
 			runCmd("mkdir", []string{"-p", dbDir})
@@ -136,6 +133,13 @@ func checkAndRestartRelays() {
 				log.Fatalf("Error occurred while writing to file. Error is: %s", err.Error())
 			}
 
+			// working directory is the CWD
+			dir, err := os.Getwd()
+			if err != nil {
+				log.Fatalf("Error getting current directory, this should not happen: %v", err)
+				return
+			}
+
 			// create systemd unit file
 			unit := fmt.Sprintf(`
 [Unit]
@@ -146,12 +150,12 @@ StartLimitInterval=0
 ExecStart=/app/strfry relay
 Restart=always
 RestartSec=1
-WorkingDirectory=/app/curldown/%s
+WorkingDirectory=%s/%s
 LimitNOFILE=infinity
 
 [Install]
 WantedBy=multi-user.target
-`, relay["id"].(string))
+`, dir, relay["id"].(string))
 
 			unitFileName := fmt.Sprintf("/lib/systemd/system/%s.service", relay["id"].(string))
 			file, err = os.OpenFile(unitFileName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)

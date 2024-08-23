@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -31,7 +32,7 @@ func init() {
 func getRelayList(status string) []map[string]interface{} {
 	var useURL string
 	if status == "provision" {
-		useURL = baseURL + "/api/sconfig/relays"
+		useURL = baseURL + "/api/sconfig/relays" + "?ip=" + hostIP
 	} else if status == "deleting" {
 		useURL = baseURL + "/api/sconfig/relays/deleting"
 	}
@@ -110,10 +111,18 @@ func cleanUpDeletedRelays() {
 }
 
 func checkAndRestartRelays() {
+
 	relays := getRelayList("provision")
 	for _, relay := range relays {
 		log.Printf("Provisioning relay %s\n", relay["id"].(string))
 		if relay["status"] == "provision" {
+			// check if streaming is enabled
+			streamEnabled := false
+			streams := relay["streams"].([]interface{})
+			if len(streams) > 0 {
+				streamEnabled = true
+			}
+
 			// make directory structure for strfry
 			dbDir := fmt.Sprintf("%s/strfry-db", relay["id"].(string))
 			runCmd("mkdir", []string{"-p", dbDir})
@@ -167,12 +176,93 @@ WantedBy=multi-user.target
 				log.Fatalf("Error occurred while writing to file. Error is: %s", err.Error())
 			}
 
+			if streamEnabled {
+				for _, stream := range streams {
+					// create systemd unit file for streaming
+					theStream := stream.(map[string]interface{})
+					streamUnit := fmt.Sprintf(`
+					[Unit]
+					Description=strfry stream
+					StartLimitInterval=0
+					
+					[Service]
+					ExecStart=/app/strfry stream --dir=down %s
+					Restart=always
+					RestartSec=1
+					WorkingDirectory=%s/%s
+					LimitNOFILE=infinity
+					
+					[Install]
+					WantedBy=multi-user.target
+					`, theStream["url"].(string), dir, relay["id"].(string))
+
+					streamUnitFileName := fmt.Sprintf("/lib/systemd/system/%s-stream.service", relay["id"].(string))
+					file, err = os.OpenFile(streamUnitFileName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+					if err != nil {
+						log.Fatalf("Error occurred while opening file. Error is: %s", err.Error())
+					}
+					defer file.Close()
+					if _, err := file.WriteString(streamUnit); err != nil {
+						log.Fatalf("Error occurred while writing to file. Error is: %s", err.Error())
+					}
+
+					// create systemd unit file for syncing
+					if theStream["sync"].(bool) {
+
+						syncUnit := fmt.Sprintf(`
+	[Unit]
+	Description=strfry sync
+	StartLimitInterval=0
+
+	[Service]
+	ExecStart=/app/strfry sync --dir=down %s
+	WorkingDirectory=%s/%s
+	LimitNOFILE=infinity
+	Restart=no
+
+	[Install]
+	WantedBy=multi-user.target
+	`, theStream["url"].(string), dir, relay["id"].(string))
+
+						syncUnitFileName := fmt.Sprintf("/lib/systemd/system/%s-sync.service", relay["id"].(string))
+						file, err = os.OpenFile(syncUnitFileName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+						if err != nil {
+							log.Fatalf("Error occurred while opening file. Error is: %s", err.Error())
+						}
+						defer file.Close()
+						if _, err := file.WriteString(syncUnit); err != nil {
+							log.Fatalf("Error occurred while writing to file. Error is: %s", err.Error())
+						}
+					}
+				}
+			}
+
 			// reload systemd
 			runCmd("systemctl", []string{"daemon-reload"})
 
 			// enable and start systemd unit
 			runCmd("systemctl", []string{"enable", relay["id"].(string)})
-			runCmd("systemctl", []string{"start", relay["id"].(string)})
+			runCmd("systemctl", []string{"restart", relay["id"].(string)})
+
+			if streamEnabled {
+				for _, stream := range streams {
+					// enable and start stream
+					theStream := stream.(map[string]interface{})
+					runCmd("systemctl", []string{"enable", relay["id"].(string) + "-stream"})
+					runCmd("systemctl", []string{"restart", relay["id"].(string) + "-stream"})
+
+					if theStream["sync"].(bool) {
+						//sleep for 3 seconds to allow stream to start
+						time.Sleep(3 * time.Second)
+						// then start the sync
+						runCmd("systemctl", []string{"start", relay["id"].(string) + "-sync"})
+					}
+				}
+			} else {
+				// cleanup streams if they exist
+				runCmd("systemctl", []string{"stop", relay["id"].(string) + "-stream"})
+				runCmd("systemctl", []string{"disable", relay["id"].(string) + "-stream"})
+			}
 
 			// report status to api
 			deployStatusUpdate(relay["id"].(string), "running")

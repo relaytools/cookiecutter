@@ -17,6 +17,7 @@ import (
 )
 
 var baseURL string
+var hostIP string
 var jar, _ = cookiejar.New(nil)
 
 var client http.Client
@@ -30,7 +31,7 @@ func runCmd(cmd string, args []string) bool {
 		if ok && exitErr.ExitCode() == 1 {
 			return false
 		}
-		log.Fatal(err)
+		//log.Fatal(err)
 	}
 	log.Printf("%s", out)
 	return true
@@ -121,6 +122,13 @@ func init() {
 	viper.AutomaticEnv()
 	viper.BindEnv("PRIVATE_KEY")
 	viper.BindEnv("BASE_URL")
+	viper.BindEnv("HOST_IP")
+	viper.SetDefault("HOST_IP", "127.0.0.1")
+
+	hostIP = viper.GetString("HOST_IP")
+	if hostIP == "" || hostIP == "127.0.0.1" {
+		fmt.Println("HOST_IP environment variable is not set. using 127.0.0.1")
+	}
 
 	baseURL = viper.GetString("BASE_URL")
 	if baseURL == "" {

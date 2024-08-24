@@ -92,7 +92,7 @@ func diffFiles(oldPath string, newPath string) (bool, error) {
 
 	newBytes, err := os.ReadFile(newPath)
 	if err != nil {
-		log.Fatalf("Error occurred while reading new config file. Error is: %s", err.Error())
+		log.Printf("Error occurred while reading new config file. Error is: %s", err.Error())
 		return true, nil
 	}
 

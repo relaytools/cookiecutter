@@ -30,10 +30,10 @@ func init() {
 }
 
 func checkAndRestartHaproxy() {
+	getHaproxyCfg()
 	if viper.GetBool("MANAGE_SSL_CERTIFICATES") {
 		checkAndRenewCerts()
 	}
-	getHaproxyCfg()
 }
 
 func checkAndRenewCerts() {
@@ -74,7 +74,7 @@ func checkAndRenewCerts() {
 			if renewStatus == false {
 				log.Println("error running certbot-renew.sh")
 			}
-			runCmd("systemctl", []string{"restart", "haproxy"})
+			runCmd("systemctl", []string{"reload", "haproxy"})
 		} else {
 			log.Println("certbot-changes.. no change detected")
 		}

@@ -31,7 +31,7 @@ func runCmd(cmd string, args []string) bool {
 		if ok && exitErr.ExitCode() == 1 {
 			return false
 		}
-		//log.Fatal(err)
+		log.Println("runcmd error: ", err)
 	}
 	log.Printf("%s", out)
 	return true
@@ -123,7 +123,9 @@ func init() {
 	viper.BindEnv("PRIVATE_KEY")
 	viper.BindEnv("BASE_URL")
 	viper.BindEnv("HOST_IP")
+	viper.BindEnv("MANAGE_SSL_CERTIFICATES")
 	viper.SetDefault("HOST_IP", "127.0.0.1")
+	viper.SetDefault("MANAGE_SSL_CERTIFICATES", true)
 
 	hostIP = viper.GetString("HOST_IP")
 	if hostIP == "" || hostIP == "127.0.0.1" {

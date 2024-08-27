@@ -23,82 +23,73 @@ var action = &cobra.Command{
 	Short: "action",
 	Long:  `action`,
 	Run: func(cmd *cobra.Command, args []string) {
-		pubkey := viper.GetString("pubkey")
-		relayID := viper.GetString("relay")
-		log.Printf("pubkey: %s, relayID: %s", pubkey, relayID)
+		log.Println("USAGE: cookiecutter action [allowlist/blocklist] [add/remove]")
+		log.Println("cookiecutter action allowlist --help for more details")
+		cmd.Usage()
 	},
 }
 
 func doPost(pubkey string, reason string, useURL string) {
-	if pubkey != "" {
-		// add the pubkey
-		postBody := PostBody{
-			Pubkey: pubkey,
-			Reason: reason,
-		}
-		jsonData, err := json.Marshal(postBody)
-		if err != nil {
-			log.Fatalf("Error encoding JSON: %v", err)
-		}
+	// add the pubkey
+	postBody := PostBody{
+		Pubkey: pubkey,
+		Reason: reason,
+	}
+	jsonData, err := json.Marshal(postBody)
+	if err != nil {
+		log.Fatalf("Error encoding JSON: %v", err)
+	}
 
-		// Create a new buffer with the JSON data
-		buffer := bytes.NewBuffer(jsonData)
+	// Create a new buffer with the JSON data
+	buffer := bytes.NewBuffer(jsonData)
 
-		req, err := http.NewRequest("POST", useURL, buffer)
-		if err != nil {
-			log.Fatalf("Error creating request: %v", err)
-		}
+	req, err := http.NewRequest("POST", useURL, buffer)
+	if err != nil {
+		log.Fatalf("Error creating request: %v", err)
+	}
 
-		req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Type", "application/json")
 
-		resp, err := client.Do(req)
-		if err != nil {
-			log.Fatalf("Error making request: %v", err)
-		}
-		defer resp.Body.Close()
-		var data []map[string]interface{}
-		body, _ := io.ReadAll(resp.Body)
-		json.Unmarshal(body, &data)
-		if resp.StatusCode == 200 {
-			log.Println("success.")
-		} else {
-			log.Printf("error response: %d, %v", resp.StatusCode, data)
-			os.Exit(1)
-		}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Fatalf("Error making request: %v", err)
+	}
+	defer resp.Body.Close()
+	var data []map[string]interface{}
+	body, _ := io.ReadAll(resp.Body)
+	json.Unmarshal(body, &data)
+	if resp.StatusCode == 200 {
+		log.Println("success.")
 	} else {
-		log.Println("pubkey was empty")
+		log.Printf("error response: %d, %v", resp.StatusCode, data)
+		os.Exit(1)
 	}
 }
 
 func doDelete(pubkey string, useURL string) {
-	if pubkey != "" {
-		// remove the pubkey
-		useURL = useURL + "?pubkey=" + pubkey
-		req, err := http.NewRequest("DELETE", useURL, nil)
-		if err != nil {
-			log.Fatalf("Error creating request: %v", err)
-		}
-
-		req.Header.Set("Content-Type", "application/json")
-
-		resp, err := client.Do(req)
-		if err != nil {
-			log.Fatalf("Error making request: %v", err)
-		}
-		defer resp.Body.Close()
-		var data []map[string]interface{}
-		body, _ := io.ReadAll(resp.Body)
-		json.Unmarshal(body, &data)
-		if resp.StatusCode == 200 {
-			log.Println("success.")
-		} else {
-			log.Printf("error response: %d, %v", resp.StatusCode, data)
-			os.Exit(1)
-		}
-	} else {
-		log.Println("pubkey was empty")
+	// remove the pubkey
+	useURL = useURL + "?pubkey=" + pubkey
+	req, err := http.NewRequest("DELETE", useURL, nil)
+	if err != nil {
+		log.Fatalf("Error creating request: %v", err)
 	}
 
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Fatalf("Error making request: %v", err)
+	}
+	defer resp.Body.Close()
+	var data []map[string]interface{}
+	body, _ := io.ReadAll(resp.Body)
+	json.Unmarshal(body, &data)
+	if resp.StatusCode == 200 {
+		log.Println("success.")
+	} else {
+		log.Printf("error response: %d, %v", resp.StatusCode, data)
+		os.Exit(1)
+	}
 }
 
 var allowlist = &cobra.Command{
@@ -106,6 +97,7 @@ var allowlist = &cobra.Command{
 	Short: "allowlist",
 	Long:  `allowlist`,
 	Run: func(cmd *cobra.Command, args []string) {
+		cmd.Usage()
 	},
 }
 
@@ -119,7 +111,11 @@ var allowlistadd = &cobra.Command{
 		reason := viper.GetString("reason")
 
 		if relayID == "" {
-			log.Fatal("--relay required")
+			log.Fatal("--relay <relay ID> required")
+		}
+
+		if pubkey == "" {
+			log.Fatal("--pubkey required")
 		}
 
 		ev := signEventWithLoginToken()
@@ -141,7 +137,11 @@ var allowlistremove = &cobra.Command{
 		relayID := viper.GetString("relay")
 
 		if relayID == "" {
-			log.Fatal("--relay required")
+			log.Fatal("--relay <relay ID> required")
+		}
+
+		if pubkey == "" {
+			log.Fatal("--pubkey required")
 		}
 
 		ev := signEventWithLoginToken()
@@ -166,6 +166,10 @@ var blocklistadd = &cobra.Command{
 			log.Fatal("--relay required")
 		}
 
+		if pubkey == "" {
+			log.Fatal("--pubkey required")
+		}
+
 		ev := signEventWithLoginToken()
 		csrf := getCSRF()
 		performLogin(ev, csrf)
@@ -180,6 +184,7 @@ var blocklist = &cobra.Command{
 	Short: "blocklist",
 	Long:  `blocklist`,
 	Run: func(cmd *cobra.Command, args []string) {
+		cmd.Usage()
 	},
 }
 

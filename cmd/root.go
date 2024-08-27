@@ -13,7 +13,8 @@ var rootCmd = &cobra.Command{
 	Long:  `cookiecutter`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("USAGE: cookiecutter [command] [options]")
-		fmt.Println("commands: strfrydeploy, haproxydeploy")
+		fmt.Println("commands: strfrydeploy, haproxydeploy, action")
+		fmt.Println("run: cookiecutter [command] --help for additional info")
 	},
 }
 

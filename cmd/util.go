@@ -58,7 +58,7 @@ func signEventWithLoginToken() nostr.Event {
 	body, _ := io.ReadAll(resp.Body)
 	json.Unmarshal(body, &data)
 
-	fmt.Println(data["token"])
+	//fmt.Println(data["token"])
 	pub, _ := nostr.GetPublicKey(privateKey)
 
 	// create event to sign
@@ -128,9 +128,6 @@ func init() {
 	viper.SetDefault("MANAGE_SSL_CERTIFICATES", true)
 
 	hostIP = viper.GetString("HOST_IP")
-	if hostIP == "" || hostIP == "127.0.0.1" {
-		fmt.Println("HOST_IP environment variable is not set. using 127.0.0.1")
-	}
 
 	baseURL = viper.GetString("BASE_URL")
 	if baseURL == "" {

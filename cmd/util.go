@@ -119,6 +119,21 @@ func init() {
 		Jar: jar,
 	}
 
+	viper.AddConfigPath("/usr/local/etc")
+	viper.AddConfigPath("./")
+	viper.SetConfigName(".cookiecutter.env")
+	viper.SetConfigType("env")
+
+	if err := viper.ReadInConfig(); err != nil {
+		fmt.Println("Warn: error reading monitorlizard config file from current directory -or- /usr/local/etc/.cookiecutter.env\n", err)
+		//os.Exit(1)
+	}
+	// Viper unmarshals the loaded env variables into the struct
+	//if err := viper.Unmarshal(&iConfig); err != nil {
+	//	fmt.Print("Warn: unable to decode monitorlizard config into struct\n", err)
+	//	os.Exit(1)
+	//}
+
 	viper.AutomaticEnv()
 	viper.BindEnv("PRIVATE_KEY")
 	viper.BindEnv("BASE_URL")

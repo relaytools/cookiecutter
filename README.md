@@ -8,7 +8,7 @@ Part of the relaytools stack.
 
 ```bash
 # setup the env with the nostr private key
-cp env.develop .env
+cp env.develop .cookiecutter.env
 go build
 ./cookiecutter --help
 ```

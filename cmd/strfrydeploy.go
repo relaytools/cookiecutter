@@ -177,7 +177,7 @@ WantedBy=multi-user.target
 			}
 
 			if streamEnabled {
-				for _, stream := range streams {
+				for i, stream := range streams {
 					// create systemd unit file for streaming
 					theStream := stream.(map[string]interface{})
 					streamUnit := fmt.Sprintf(`
@@ -196,7 +196,7 @@ WantedBy=multi-user.target
 					WantedBy=multi-user.target
 					`, theStream["url"].(string), dir, relay["id"].(string))
 
-					streamUnitFileName := fmt.Sprintf("/lib/systemd/system/%s-stream.service", relay["id"].(string))
+					streamUnitFileName := fmt.Sprintf("/lib/systemd/system/%s-stream%d.service", relay["id"].(string), i)
 					file, err = os.OpenFile(streamUnitFileName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 					if err != nil {
 						log.Fatalf("Error occurred while opening file. Error is: %s", err.Error())
@@ -224,7 +224,7 @@ WantedBy=multi-user.target
 	WantedBy=multi-user.target
 	`, theStream["url"].(string), dir, relay["id"].(string))
 
-						syncUnitFileName := fmt.Sprintf("/lib/systemd/system/%s-sync.service", relay["id"].(string))
+						syncUnitFileName := fmt.Sprintf("/lib/systemd/system/%s-sync%d.service", relay["id"].(string), i)
 						file, err = os.OpenFile(syncUnitFileName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 						if err != nil {
 							log.Fatalf("Error occurred while opening file. Error is: %s", err.Error())
@@ -245,11 +245,11 @@ WantedBy=multi-user.target
 			runCmd("systemctl", []string{"restart", relay["id"].(string)})
 
 			if streamEnabled {
-				for _, stream := range streams {
+				for i, stream := range streams {
 					// enable and start stream
 					theStream := stream.(map[string]interface{})
-					runCmd("systemctl", []string{"enable", relay["id"].(string) + "-stream"})
-					runCmd("systemctl", []string{"restart", relay["id"].(string) + "-stream"})
+					runCmd("systemctl", []string{"enable", fmt.Sprintf("%s-stream%d", relay["id"].(string), i)})
+					runCmd("systemctl", []string{"restart", fmt.Sprintf("%s-stream%d", relay["id"].(string), i)})
 
 					if theStream["sync"].(bool) {
 						//sleep for 3 seconds to allow stream to start
@@ -260,8 +260,12 @@ WantedBy=multi-user.target
 				}
 			} else {
 				// cleanup streams if they exist
-				runCmd("systemctl", []string{"stop", relay["id"].(string) + "-stream"})
-				runCmd("systemctl", []string{"disable", relay["id"].(string) + "-stream"})
+				// need loop
+
+				for i, _ := range streams {
+					runCmd("systemctl", []string{"stop", fmt.Sprintf("%s-stream%d", relay["id"].(string), i)})
+					runCmd("systemctl", []string{"disable", fmt.Sprintf("%s-stream%d", relay["id"].(string), i)})
+				}
 			}
 
 			// report status to api

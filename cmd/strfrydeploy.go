@@ -34,7 +34,7 @@ func getRelayList(status string) []map[string]interface{} {
 	if status == "provision" {
 		useURL = baseURL + "/api/sconfig/relays" + "?ip=" + hostIP
 	} else if status == "deleting" {
-		useURL = baseURL + "/api/sconfig/relays/deleting"
+		useURL = baseURL + "/api/sconfig/relays/deleting" + "?ip=" + hostIP
 	}
 	req, err := http.NewRequest("GET", useURL, nil)
 	if err != nil {

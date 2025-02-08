@@ -186,7 +186,7 @@ WantedBy=multi-user.target
 					StartLimitInterval=0
 					
 					[Service]
-					ExecStart=/app/strfry stream --dir=down %s
+					ExecStart=/app/strfry stream --dir=%s %s
 					Restart=always
 					RestartSec=1
 					WorkingDirectory=%s/%s
@@ -194,7 +194,7 @@ WantedBy=multi-user.target
 					
 					[Install]
 					WantedBy=multi-user.target
-					`, theStream["url"].(string), dir, relay["id"].(string))
+					`, theStream["direction"].(string), theStream["url"].(string), dir, relay["id"].(string))
 
 					streamUnitFileName := fmt.Sprintf("/lib/systemd/system/%s-stream%d.service", relay["id"].(string), i)
 					file, err = os.OpenFile(streamUnitFileName, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
@@ -258,14 +258,15 @@ WantedBy=multi-user.target
 						runCmd("systemctl", []string{"start", relay["id"].(string) + "-sync"})
 					}
 				}
-			} else {
-				// cleanup streams if they exist
-				// need loop
+			}
 
-				for i, _ := range streams {
-					runCmd("systemctl", []string{"stop", fmt.Sprintf("%s-stream%d", relay["id"].(string), i)})
-					runCmd("systemctl", []string{"disable", fmt.Sprintf("%s-stream%d", relay["id"].(string), i)})
+			// cleanup deleted streams if they exist
+			for i := 0; i < 5; i++ {
+				if i < len(streams) {
+					continue
 				}
+				runCmd("systemctl", []string{"stop", fmt.Sprintf("%s-stream%d", relay["id"].(string), i)})
+				runCmd("systemctl", []string{"disable", fmt.Sprintf("%s-stream%d", relay["id"].(string), i)})
 			}
 
 			// report status to api

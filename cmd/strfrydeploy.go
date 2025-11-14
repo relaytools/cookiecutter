@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -22,6 +23,7 @@ var strfrydeploy = &cobra.Command{
 		performLogin(ev, csrf)
 		checkAndRestartRelays()
 		cleanUpDeletedRelays()
+		runJobs()
 	},
 }
 
@@ -31,9 +33,10 @@ func init() {
 
 func getRelayList(status string) []map[string]interface{} {
 	var useURL string
-	if status == "provision" {
+	switch status {
+	case "provision":
 		useURL = baseURL + "/api/sconfig/relays" + "?ip=" + hostIP
-	} else if status == "deleting" {
+	case "deleting":
 		useURL = baseURL + "/api/sconfig/relays/deleting" + "?ip=" + hostIP
 	}
 	req, err := http.NewRequest("GET", useURL, nil)
@@ -50,6 +53,23 @@ func getRelayList(status string) []map[string]interface{} {
 	json.Unmarshal(body, &data)
 
 	fmt.Println(data)
+	return data
+}
+
+func getJobs() []map[string]interface{} {
+	useURL := baseURL + "/api/sconfig/jobs" + "?ip=" + hostIP
+	req, err := http.NewRequest("GET", useURL, nil)
+	if err != nil {
+		log.Fatalf("Got error %s", err.Error())
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Fatalf("Error occured. Error is: %s", err.Error())
+	}
+	defer resp.Body.Close()
+	var data []map[string]interface{}
+	body, _ := io.ReadAll(resp.Body)
+	json.Unmarshal(body, &data)
 	return data
 }
 
@@ -92,6 +112,40 @@ func deployStatusUpdate(relayID string, status string) {
 	defer resp.Body.Close()
 }
 
+func jobStatusUpdate(jobID string, status string, output string) {
+	statusURL := fmt.Sprintf("%s/api/sconfig/jobs/%s/status", baseURL, jobID)
+	req, err := http.NewRequest("PUT", statusURL, nil)
+	if err != nil {
+		log.Printf("Error creating job status update request: %s", err.Error())
+		return
+	}
+
+	q := req.URL.Query()
+	q.Add("status", status)
+	req.URL.RawQuery = q.Encode()
+
+	data := map[string]string{"output": output}
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		log.Printf("Error marshaling output JSON: %s", err.Error())
+		return
+	}
+	req.Body = io.NopCloser(bytes.NewBuffer(jsonData))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Printf("Error updating job status: %s", err.Error())
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		log.Printf("Failed to update job status, HTTP %d: %s", resp.StatusCode, statusURL)
+		return
+	}
+}
+
 func cleanUpDeletedRelays() {
 	relays := getRelayList("deleting")
 	for _, relay := range relays {
@@ -106,6 +160,48 @@ func cleanUpDeletedRelays() {
 
 			// update status to deleted
 			deployStatusUpdate(relay["id"].(string), "deleted")
+		}
+	}
+}
+
+func runJobs() {
+	jobs := getJobs()
+	for _, j := range jobs {
+		if j["status"] != "queue" {
+			continue
+		}
+		jobID := j["id"].(string)
+		relayID := j["relayId"].(string)
+
+		// Mark job as running
+		jobStatusUpdate(jobID, "running", "")
+
+		var success bool
+		var errorMsg string
+		var output string
+
+		switch j["kind"] {
+		case "deleteEvent":
+			// cd into the relay's directory, and run the command to delete the event.
+			eventID := j["eventId"].(string)
+			log.Printf("Deleting event %s from relay %s\n", eventID, relayID)
+			filter := fmt.Sprintf("{\"ids\": [\"%s\"]}", eventID)
+			success, output = runCmdInDir(relayID, "/app/strfry", []string{"delete", "--filter", filter})
+
+		case "deletePubkey":
+			// cd into the relay's directory, and run the command to delete by pubkey.
+			pubkey := j["pubkey"].(string)
+			filter := fmt.Sprintf("{\"authors\": [\"%s\"]}", pubkey)
+			log.Printf("Deleting events by pubkey %s from relay %s\n", pubkey, relayID)
+			success, output = runCmdInDir(relayID, "/app/strfry", []string{"delete", "--filter", filter})
+		}
+
+		// Update job status based on result
+		log.Printf("Job %s result: success=%v, errorMsg='%s', output='%s'", jobID, success, errorMsg, output)
+		if success {
+			jobStatusUpdate(jobID, "completed", output)
+		} else {
+			jobStatusUpdate(jobID, "failed", output)
 		}
 	}
 }

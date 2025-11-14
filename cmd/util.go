@@ -37,6 +37,21 @@ func runCmd(cmd string, args []string) bool {
 	return true
 }
 
+func runCmdInDir(dir string, cmd string, args []string) (bool, string) {
+	log.Printf("Running in %s: %s %v", dir, cmd, args)
+	command := exec.Command(cmd, args...)
+	command.Dir = dir
+	out, err := command.CombinedOutput()
+	output := string(out)
+	if err != nil {
+		log.Println("Command failed with output:", output)
+		log.Println("Error:", err)
+		return false, fmt.Sprintf("%s\nError: %s", output, err)
+	}
+	log.Printf("Command succeeded with output: %s", output)
+	return true, output
+}
+
 func signEventWithLoginToken() nostr.Event {
 
 	privateKey := viper.GetString("PRIVATE_KEY")

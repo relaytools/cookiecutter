@@ -146,6 +146,33 @@ func jobStatusUpdate(jobID string, status string, output string) {
 	}
 }
 
+func getString(m map[string]interface{}, key string) (string, bool) {
+	v, exists := m[key]
+	if !exists || v == nil {
+		return "", false
+	}
+	s, ok := v.(string)
+	return s, ok
+}
+
+func getNumber(m map[string]interface{}, key string) (string, bool) {
+	v, exists := m[key]
+	if !exists || v == nil {
+		return "", false
+	}
+	switch n := v.(type) {
+	case float64:
+		return fmt.Sprintf("%.0f", n), true
+	case int:
+		return fmt.Sprintf("%d", n), true
+	case int64:
+		return fmt.Sprintf("%d", n), true
+	case string:
+		return n, true
+	}
+	return "", false
+}
+
 func cleanUpDeletedRelays() {
 	relays := getRelayList("deleting")
 	for _, relay := range relays {
@@ -193,6 +220,59 @@ func runJobs() {
 			pubkey := j["pubkey"].(string)
 			filter := fmt.Sprintf("{\"authors\": [\"%s\"]}", pubkey)
 			log.Printf("Deleting events by pubkey %s from relay %s\n", pubkey, relayID)
+			success, output = runCmdInDir(relayID, "/app/strfry", []string{"delete", "--filter", filter})
+
+		case "sync":
+			// cd into the relay's directory, and run the command to sync.
+			log.Printf("Syncing relay %s\n", relayID)
+			syncDir, ok := getString(j, "syncDirection")
+			if !ok {
+				log.Printf("Sync dir not found for relay %s\n", relayID)
+				jobStatusUpdate(jobID, "failed", "missing syncDirection")
+				continue
+			}
+			syncHost, ok := getString(j, "syncHost")
+			if !ok {
+				log.Printf("syncHost not found for relay %s\n", relayID)
+				jobStatusUpdate(jobID, "failed", "missing syncHost")
+				continue
+			}
+			success, output = runCmdInDir(relayID, "/app/strfry", []string{"sync", "--dir", syncDir, syncHost})
+
+		case "deletedmsuntil":
+			// Delete kind 1059 DMs for a pubkey up to a certain timestamp
+			pubkey, ok := getString(j, "pubkey")
+			if !ok {
+				log.Printf("pubkey not found for deletedmsuntil job %s\n", jobID)
+				jobStatusUpdate(jobID, "failed", "missing pubkey")
+				continue
+			}
+			until, ok := getNumber(j, "until")
+			if !ok {
+				log.Printf("until not found for deletedmsuntil job %s\n", jobID)
+				jobStatusUpdate(jobID, "failed", "missing until")
+				continue
+			}
+			log.Printf("Deleting DMs for pubkey %s until %s from relay %s\n", pubkey, until, relayID)
+			filter := fmt.Sprintf(`{"kinds": [1059], "#p": ["%s"], "until": %s}`, pubkey, until)
+			success, output = runCmdInDir(relayID, "/app/strfry", []string{"delete", "--filter", filter})
+
+		case "deletedmsid":
+			// Delete a specific kind 1059 DM by event ID and p tag
+			eventID, ok := getString(j, "eventId")
+			if !ok {
+				log.Printf("eventId not found for deletedmsid job %s\n", jobID)
+				jobStatusUpdate(jobID, "failed", "missing eventId")
+				continue
+			}
+			pubkey, ok := getString(j, "pubkey")
+			if !ok {
+				log.Printf("pubkey not found for deletedmsid job %s\n", jobID)
+				jobStatusUpdate(jobID, "failed", "missing pubkey")
+				continue
+			}
+			log.Printf("Deleting DM %s for pubkey %s from relay %s\n", eventID, pubkey, relayID)
+			filter := fmt.Sprintf(`{"kinds": [1059], "ids": ["%s"], "#p": ["%s"]}`, eventID, pubkey)
 			success, output = runCmdInDir(relayID, "/app/strfry", []string{"delete", "--filter", filter})
 		}
 
